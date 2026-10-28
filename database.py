@@ -249,6 +249,31 @@ class AsyncDatabase:
             )
             return (await cursor.fetchone()) is not None
 
+    # --- ПЛАНИРОВЩИК / НАПОМИНАНИЯ (ЗА 24 ЧАСА) ---
+    async def get_deadlines_for_24h_reminder(self):
+        """Находит дедлайны, у которых срок наступает менее чем через 24 часа."""
+        import datetime
+        now = datetime.datetime.now()
+        in_24h = now + datetime.timedelta(hours=24)
+
+        now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        in_24h_str = in_24h.strftime("%Y-%m-%d %H:%M:%S")
+
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                """SELECT d.*, g.name as group_name 
+                   FROM deadlines d JOIN groups g ON g.id = d.group_id
+                   WHERE d.reminded_24h = 0 AND d.due_date > ? AND d.due_date <= ?""",
+                (now_str, in_24h_str),
+            )
+            return [dict(r) for r in await cursor.fetchall()]
+
+    async def mark_reminder_sent(self, deadline_id: int):
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("UPDATE deadlines SET reminded_24h = 1 WHERE id = ?", (deadline_id,))
+            await db.commit()
+
 class SyncDatabase:
     """Синхронный клиент БД для десктопного GUI на CustomTkinter."""
 

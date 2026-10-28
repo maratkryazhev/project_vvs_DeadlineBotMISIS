@@ -7,6 +7,7 @@ from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from bot.scheduler import format_remaining_time
 
 from database import AsyncDatabase
 from bot.keyboards import (
@@ -195,7 +196,7 @@ async def list_deadlines(event: Union[Message, CallbackQuery], db: AsyncDatabase
     for d in deadlines:
         is_done = bool(d["is_completed"])
         status_icon = "✅" if is_done else "⏳"
-        status_line = "<b>Статус:</b> СДАНО ✅" if is_done else f"<b>Срок:</b> {d['due_date']}"
+        status_line = "<b>Статус:</b> СДАНО ✅" if is_done else f"<b>Осталось:</b> {format_remaining_time(d['due_date'])}"
 
         author = d.get("created_by_name") or "Студент"
         card_text = (
@@ -382,6 +383,7 @@ async def process_due_date(message: Message, state: FSMContext, db: AsyncDatabas
         f"📚 <b>Предмет:</b> {data['subject']}\n"
         f"📝 <b>Задание:</b> {data['title']}\n"
         f"⏰ <b>Срок сдачи:</b> <code>{iso_date}</code>\n"
+        f"⏳ <b>Осталось:</b> {format_remaining_time(iso_date)}\n"
     )
     if data.get("description"):
         card += f"💬 <b>Инфо:</b> {data['description']}\n"

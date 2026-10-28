@@ -7,6 +7,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from database import AsyncDatabase
 from bot.handlers import router as bot_router
+from bot.scheduler import reminder_worker
 
 logger = logging.getLogger("BotService")
 
@@ -52,6 +53,16 @@ class BotRunner:
             self.is_running = True
             self.log(f"🟢 Бот успешно подключен как @{me.username} ({me.first_name})")
 
+            # ЗАПУСК ПЛАНИРОВЩИКА
+            self.scheduler_task = asyncio.create_task(
+                reminder_worker(
+                    bot=self.bot,
+                    db=self.db,
+                    interval_seconds=30,
+                    log_callback=self.log_callback
+                )
+            )
+
             self.log("🚀 Запущен асинхронный Polling сообщений Telegram...")
             # Сбрасываем старые накопившиеся апдейты и начинаем опрос
             await self.bot.delete_webhook(drop_pending_updates=True)
@@ -68,6 +79,15 @@ class BotRunner:
     async def shutdown(self):
         """Корректно останавливает все асинхронные задачи."""
         self.is_running = False
+
+        # ОСТАНОВКА ПЛАНИРОВЩИКА
+        if self.scheduler_task and not self.scheduler_task.done():
+            self.scheduler_task.cancel()
+            try:
+                await self.scheduler_task
+            except asyncio.CancelledError:
+                pass
+
         if self.bot:
             try:
                 await self.bot.session.close()
