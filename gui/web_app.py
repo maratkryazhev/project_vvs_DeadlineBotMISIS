@@ -8,6 +8,7 @@ from aiohttp import web
 
 from database import AsyncDatabase
 from bot.bot_service import BotRunner
+from bot.scheduler import format_remaining_time
 
 logger = logging.getLogger("WebGUI")
 
@@ -431,7 +432,7 @@ class WebDashboardApp:
             raw_deadlines = await self.db.get_group_deadlines(group_id, user_id=user_id)
             for d in raw_deadlines:
                 item = dict(d)
-                item["remaining"] = "Считается на клиенте"
+                item["remaining"] = format_remaining_time(item["due_date"])
                 deadlines.append(item)
             members = await self.db.get_group_members(group_id)
 
